@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.conf import settings
 from django.core.mail import send_mail
+import random
 
 # Create your views here.
 @login_required(login_url='Login')
@@ -43,6 +44,7 @@ def Login_page(request):
 
 def signup_page(request):
     if request.method =='POST':
+        email=request.POST['email']
         username=request.POST['username']
         password=request.POST['password1']
         password1=request.POST['password2']
@@ -58,12 +60,11 @@ def signup_page(request):
             messages.success(request,'Password donot match')
             return redirect('/signup')
         
-        my_user=User.objects.create_user(username,"",password)
+        my_user=User.objects.create_user(username,email,password)
         my_user.save()
         
         prof=Profile.objects.create(user=my_user,Auth_token=token_id)
         prof.save()
-        email='aaryanshah615@gmail.com'
         send_mail_after_registration(email,token_id)
         messages.success(request,'Please verify your account Through Gmail')
         return redirect('/login')   
@@ -102,5 +103,58 @@ def send_mail_after_registration(email , token):
     email_from = settings.EMAIL_HOST_USER
     recipient_list = [email]
     send_mail(subject, message , email_from ,recipient_list )
-
     
+def send_mail_verify(email ,token):
+    subject = 'Your account to be verified'
+    message =f'Hi click the link to change your account password http://127.0.0.1:8000/changepassword/{token}'
+    email_from = settings.EMAIL_HOST_USER
+    recipient_list = [email]
+    send_mail(subject, message , email_from ,recipient_list )    
+    
+
+def forget(request):
+    if request.method =='POST':
+      email=request.POST['email']
+      user_obj=User.objects.filter(email=email).first()
+      if user_obj is None:
+          messages.success(request, 'User not found.')
+          return redirect('/login')
+          
+      profile_obj = Profile.objects.filter(user=user_obj).first()
+      
+      if user_obj:
+          rand_number=random.randint(1,1000)
+          profile_obj.otp=rand_number
+          profile_obj.save()
+          send_mail_verify(email,rand_number)
+          messages.success(request, 'Please check your Gmail for password change.')
+          return redirect('/login')
+          
+          
+    return render(request,'forget.html')  
+
+def changepassword(request,token_otp):
+    
+    profile_obj=Profile.objects.filter(otp=token_otp).first()
+    if profile_obj is None:
+        messages.success(request, 'Something Went error.')
+        return redirect('/login')
+    user_obj=User.objects.get(username=profile_obj)
+    print(user_obj)
+    if request.method=='POST':
+     password=request.POST['password']
+     print(password)
+     print(profile_obj.otp)
+     print(token_otp)
+     if str(profile_obj.otp) == str(0):
+        messages.success(request, 'OTP is Experied')
+        return redirect('/login')
+    
+     if str(profile_obj.otp)==str(token_otp):
+            user_obj.set_password(password)
+            user_obj.save()
+            profile_obj.otp=0
+            profile_obj.save()
+            messages.success(request, 'Password changed successfully!!.')
+            return redirect('/login')   
+    return render(request,'changepassword.html')

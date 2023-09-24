@@ -9,4 +9,6 @@ urlpatterns = [
     path('login/',views.Login_page,name='Login'),
     path('signup/',views.signup_page,name='signup'),
     path('verify/<token>',views.verify),
+    path('forget/',views.forget,name='forget'),
+    path('changepassword/<token_otp>',views.changepassword,name='changepassword')
 ]
